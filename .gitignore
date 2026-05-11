@@ -2,6 +2,11 @@ node_modules
 .DS_Store
 .cache/
 public
+.next/
+out/
+storage/
+.env*.local
+tsconfig.tsbuildinfo
 
 # Local Netlify folder
 .netlify
