@@ -54,6 +54,25 @@ npm run prisma:migrate
 npm run dev
 ```
 
+
+## Previewing the portal
+
+After installing dependencies, run the unauthenticated static preview to review the dashboard experience without a database session:
+
+```bash
+npm run preview:ui
+```
+
+Then open `http://localhost:3000/preview`.
+
+For authenticated local development, migrate the database and seed a secure administrator account:
+
+```bash
+SEED_ADMIN_PASSWORD="replace-with-a-unique-16-character-password" npm run db:seed
+```
+
+Sign in with `admin@synergyinvest.example` and the password supplied through `SEED_ADMIN_PASSWORD`.
+
 ## Quality checks
 
 ```bash
