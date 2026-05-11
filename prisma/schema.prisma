@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  BOARD_MEMBER
+  COMPLIANCE_OFFICER
+  INVESTOR_RELATIONS
+  PROPERTY_MANAGER
+  SHAREHOLDER
+  INVESTOR
+  AUDITOR
+}
+
+enum DocumentClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  BOARD_ONLY
+  SHAREHOLDER_ONLY
+}
+
+enum DocumentStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum InvestorStatus {
+  PROSPECT
+  ACTIVE
+  SUSPENDED
+  EXITED
+}
+
+enum PropertyStatus {
+  DUE_DILIGENCE
+  ACQUIRED
+  OPERATING
+  DISPOSED
+}
+
+enum ShareClass {
+  COMMON
+  PREFERRED_A
+  PREFERRED_B
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  name            String
+  passwordHash    String
+  roles           Role[]     @default([])
+  isActive        Boolean    @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  auditEvents     AuditEvent[]
+  documents       Document[] @relation("DocumentUploader")
+  shareholder     Shareholder?
+  investorProfile Investor?
+
+  @@index([email])
+}
+
+model Shareholder {
+  id            String       @id @default(cuid())
+  userId        String?      @unique
+  legalName     String
+  email         String       @unique
+  taxIdentifier String?
+  country       String
+  shareClass    ShareClass
+  shares        Decimal      @db.Decimal(18, 4)
+  joinedAt      DateTime
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  holdings      Shareholding[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([legalName])
+  @@index([shareClass])
+}
+
+model Shareholding {
+  id            String      @id @default(cuid())
+  shareholderId String
+  certificateNo String      @unique
+  shareClass    ShareClass
+  shares        Decimal     @db.Decimal(18, 4)
+  issuedAt      DateTime
+  shareholder   Shareholder @relation(fields: [shareholderId], references: [id], onDelete: Cascade)
+
+  @@index([shareholderId])
+}
+
+model Investor {
+  id             String         @id @default(cuid())
+  userId         String?        @unique
+  legalName      String
+  contactEmail   String         @unique
+  status         InvestorStatus @default(PROSPECT)
+  committedUsd   Decimal        @db.Decimal(18, 2)
+  onboardedAt    DateTime?
+  user           User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([legalName])
+  @@index([status])
+}
+
+model Property {
+  id             String         @id @default(cuid())
+  name           String
+  code           String         @unique
+  addressLine1   String
+  city           String
+  region         String
+  country        String
+  status         PropertyStatus @default(DUE_DILIGENCE)
+  acquisitionUsd Decimal        @db.Decimal(18, 2)
+  acquiredAt     DateTime?
+  documents      Document[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+model Document {
+  id             String                 @id @default(cuid())
+  title          String
+  description    String?
+  classification DocumentClassification
+  status         DocumentStatus         @default(DRAFT)
+  storageKey     String                 @unique
+  checksumSha256 String
+  mimeType       String
+  sizeBytes      Int
+  propertyId     String?
+  uploadedById   String
+  property       Property?              @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  uploadedBy     User                   @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([classification])
+  @@index([status])
+  @@index([propertyId])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
